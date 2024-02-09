@@ -1,0 +1,17 @@
+test*
+*.so
+.vscode/
+propagation.cpp
+*.txt
+pretrained/
+build/
+*.pyc
+sampling
+!sampling.h
+cpptest
+*analysis/
+*.sh
+plot/
+plot*
+result/
+analysis_old/
