@@ -1,6 +1,7 @@
 # ScaleGUN
 
 ## setup
+The default data path is "./data/".
 ```bash 
 # build cython code
 python setup.py build_ext --inplace

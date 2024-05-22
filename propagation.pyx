@@ -7,9 +7,6 @@ cdef class InstantGNN:
 	def __cinit__(self):
 		self.c_instantgnn=Instantgnn()
 
-	def RandomWalkMethod( self,times,np.ndarray result):
-		return self.c_instantgnn.RandomWalkMethod(times,Map[MatrixXd](result))
-
 	def init_graph(self,path,dataset,np.ndarray array1,layer,r,weights,num_thread):
 		return self.c_instantgnn.init_graph(path.encode(),dataset.encode(),Map[MatrixXi](array1),layer,r,weights,num_thread)
 

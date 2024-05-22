@@ -24,7 +24,6 @@ namespace propagation
         double r;
         double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index,  uint _layer, double _r, const vector<double> &_weights, uint _num_threads);
         double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax);
-        int RandomWalkMethod(uint times, Eigen::Ref<Eigen::MatrixXd> result);
         void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         double PowerMethod(Eigen::Ref<Eigen::MatrixXd> result);
         double UpdateEdges(const vector<pair<uint, uint>> &edgepairs, Eigen::Ref<Eigen::MatrixXd> result, uint update_num_threads, double rmax);
@@ -38,8 +37,6 @@ namespace propagation
         // Eigen::MatrixXd MatrixMulMethod(Eigen::Ref<Eigen::MatrixXd> result);
         // void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         // void Push(uint times, uint start, uint ends, Eigen::Ref<Eigen::MatrixXd> result);
-
-        void RandomWalk(uint times, uint start, uint ends, Eigen::Ref<Eigen::MatrixXd> result);
 
         void Push(uint start, uint ends, double rmax, Eigen::Ref<Eigen::MatrixXd> result);
         void UpdateEdgesOperator(uint start, uint ends, double rmax, vector<uint> &affectNodes, vector<vector<uint>> &affectNeighbors, Eigen::Ref<Eigen::MatrixXd> result);
@@ -69,7 +66,6 @@ namespace propagation
         double r;
         double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads);
         double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax);
-        int RandomWalkMethod(uint times, Eigen::Ref<Eigen::MatrixXd> result);
         void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         double PowerMethod(Eigen::Ref<Eigen::MatrixXd> result);
         double UpdateEdges(const vector<pair<uint, uint>> &edgepairs, Eigen::Ref<Eigen::MatrixXd> result, uint update_num_threads, double rmax);
@@ -83,8 +79,6 @@ namespace propagation
         // Eigen::MatrixXd MatrixMulMethod(Eigen::Ref<Eigen::MatrixXd> result);
         // void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         // void Push(uint times, uint start, uint ends, Eigen::Ref<Eigen::MatrixXd> result);
-
-        void RandomWalk(uint times, uint start, uint ends, Eigen::Ref<Eigen::MatrixXd> result);
 
         void Push(uint start, uint ends, double rmax, Eigen::Ref<Eigen::MatrixXd> result);
         void UpdateEdgesOperator(uint start, uint ends, double rmax, vector<uint> &affectNodes, vector<vector<uint>> &affectNeighbors, Eigen::Ref<Eigen::MatrixXd> result);

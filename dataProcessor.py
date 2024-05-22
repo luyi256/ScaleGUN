@@ -20,7 +20,7 @@ from LINKX_dataset import LINKXDataset
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 
-def common(path, dataset, result_path, normalized_dim,trial,attr):
+def common(path, dataset, result_path, normalized_dim):
     start = time.time()
     if normalized_dim == "column":
         dim = 0
@@ -32,17 +32,18 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
     print("load time:", load_time - start)
 
     # print("save del edges.....")
-    data,_=load_data(path,dataset)
+    data, _ = load_data(path, dataset)
     # perm = torch.from_numpy(np.random.permutation(data.edge_index.shape[1])).to(device)
     # data.edge_index=data.edge_index.to(device)
     # edge_index=data.edge_index[:,perm]
     # np.save(
     #     f"{result_path}/{dataset}/{dataset}_del_edges.npy", edge_index.cpu().numpy()
     # )
-    # 
+    #
     train_idx = torch.arange(data.x.shape[0])[data.train_mask]
     perm = torch.from_numpy(np.random.permutation(train_idx.shape[0]))
-    np.save(f"{result_path}/{dataset}/{dataset}_del_nodes.npy",train_idx[perm])
+    np.save(f"{result_path}/{dataset}/{dataset}_del_nodes.npy",
+            train_idx[perm])
     perm = perm[: 2 * args.num_del_edges]
     edge_index = data.edge_index[:, perm]
     edge_mask = torch.ones(edge_index.shape[1], dtype=torch.bool)
@@ -57,7 +58,8 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
         dst_idx = edge_index[1][e].item()
         # find the other undirected edge
         rev_edge_idx = (
-            torch.logical_and(edge_index[0] == dst_idx, edge_index[1] == source_idx)
+            torch.logical_and(
+                edge_index[0] == dst_idx, edge_index[1] == source_idx)
             .nonzero()
             .squeeze(-1)
         )
@@ -71,7 +73,7 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
     edge_index = edge_index[:, edge_mask]
     check_dir(f"{result_path}/{dataset}")
     np.save(
-        f"{result_path}/{dataset}/{dataset}_del_edges_{trial}.npy", edge_index.cpu().numpy()
+        f"{result_path}/{dataset}/{dataset}_del_edges.npy", edge_index.cpu().numpy()
     )
     # np.savetxt(
     #     f"{result_path}/{dataset}/{dataset}_del_edges.txt",
@@ -84,21 +86,8 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
     if args.del_only:
         return
 
-    # print("save labels.....")
-    # np.savez(
-    #     f"{result_path}{dataset}/{dataset}_labels.npz",
-    #     train_idx=train_idx,
-    #     val_idx=val_idx,
-    #     test_idx=test_idx,
-    #     train_labels=train_labels,
-    #     val_labels=val_labels,
-    #     test_labels=test_labels,
-    # )
-    # label_time=time.time()
-    # print("label time:",label_time-del_time)
-
     # print("save edges.....")
-   
+
     # f = open(
     #     f"{result_path}/{dataset}/{dataset}.edges", "wb", buffering=1024 * 1024 * 128
     # )
@@ -109,17 +98,16 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
 
     # edges_time=time.time()
     # print("edges time:",edges_time-label_time)
-    if attr:
-        data.edge_index = to_undirected(data.edge_index, data.num_nodes)
-        edge_index, _ = add_remaining_self_loops(data.edge_index)
-        print("save attr.....")
-        num_edges = edge_index.shape[1]
-        f = open(f"{result_path}/{dataset}/{dataset}.attr", "w")
-        f.write("%d %d %d" % (data.num_nodes, num_edges, data.num_features))
-        print("num_nodes:", data.num_nodes)
-        print("num_edges:", num_edges)
-        print("num_features:", data.num_features)
-        f.close()
+    data.edge_index = to_undirected(data.edge_index, data.num_nodes)
+    edge_index, _ = add_remaining_self_loops(data.edge_index)
+    print("save attr.....")
+    num_edges = edge_index.shape[1]
+    f = open(f"{result_path}/{dataset}/{dataset}.attr", "w")
+    f.write("%d %d %d" % (data.num_nodes, num_edges, data.num_features))
+    print("num_nodes:", data.num_nodes)
+    print("num_edges:", num_edges)
+    print("num_features:", data.num_features)
+    f.close()
 
     print("finish saving data")
 
@@ -187,9 +175,9 @@ def common(path, dataset, result_path, normalized_dim,trial,attr):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="penn94")
-    parser.add_argument("--path", type=str, default=".//data/")
+    parser.add_argument("--path", type=str, default="/mnt_1/lu_yi/data/")
     parser.add_argument(
-        "--result_path", type=str, default=".//data/unlearning_data/"
+        "--result_path", type=str, default="/mnt_1/lu_yi/data/unlearning_data/"
     )
     parser.add_argument("--feature_only", type=bool, default=False)
     parser.add_argument("--del_only", default=False, action="store_true")
@@ -206,4 +194,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
 
-    common(args.path, args.dataset, args.result_path, args.normalized_dim,args.trial,args.attr)
+    common(args.path, args.dataset, args.result_path,
+           args.normalized_dim)

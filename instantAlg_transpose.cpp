@@ -1,6 +1,5 @@
 #include "common.h"
 #include "instantAlg.h"
-#include "sampling/sampling.h"
 using namespace std;
 
 namespace propagation
@@ -188,100 +187,6 @@ namespace propagation
             powdeg[i] = pow(GetDegree(i), -r);
         }
         return 0;
-    }
-
-    int Instantgnn_transpose::RandomWalkMethod(uint times, Eigen::Ref<Eigen::MatrixXd> result)
-    {
-        // Compute (AD^{-1})^ell by random walk
-        uint ends = 0, start;
-        vector<thread> threads;
-        uint ti;
-        for (ti = 1; ti <= dimension % num_threads; ti++)
-        {
-            start = ends;
-            ends += ceil((double)dimension / num_threads);
-            threads.push_back(thread(&Instantgnn_transpose::RandomWalk, this, times, start, ends, result));
-        }
-        for (; ti <= num_threads; ti++)
-        {
-            start = ends;
-            ends += dimension / num_threads;
-            threads.push_back(thread(&Instantgnn_transpose::RandomWalk, this, times, start, ends, result));
-        }
-        for (uint t = 0; t < num_threads; t++)
-            if (threads[t].joinable())
-                threads[t].join();
-        vector<thread>().swap(threads);
-        return 0;
-    }
-
-    void Instantgnn_transpose::RandomWalk(uint times, uint start, uint ends, Eigen::Ref<Eigen::MatrixXd> result)
-    {
-        auto feat = result;
-        init_dsfmt();
-        // cout << "start:" << start << " ends:" << ends << endl;
-        for (uint i = start; i < ends; i++)
-        {
-            // init sample structure
-            // cout << "i:" << i << endl;
-            ProbabilitySampler sampler(num_nodes);
-            vector<double> probabilities(num_nodes);
-            double prob_sum = 0.0;
-            for (uint j = 0; j < num_nodes; j++)
-            {
-                if (GetDegree(j) == 0)
-                    probabilities[j] = 0.0;
-                else
-                    probabilities[j] = fabs(feat(i, j) * pow(GetDegree(j), r));
-                result(i, j) = weights[0] * feat(i, j);
-                prob_sum += probabilities[j];
-            }
-            if (sampler.preprocess(probabilities) == -1)
-            {
-                cout << "Dimension i=" << i << " is all zero" << endl;
-                continue;
-            }
-            vector<double>().swap(probabilities);
-            for (uint j = 0; j < times; j++)
-            {
-                // sample source node
-                auto source = sampler.sample();
-                // cout << "source" << source << endl;
-                if (source > num_nodes)
-                {
-                    cout << "source=" << source << " num_nodes=" << num_nodes << endl;
-                    cout << "error" << endl;
-                    exit(-1);
-                }
-                // cout << "source=" << source << endl;
-                auto v = source;
-                for (uint k = 1; k < layer; k++)
-                {
-                    auto num_neighbor = GetDegree(v);
-                    if (num_neighbor == 0)
-                        break;
-                    double tmp = thread_local_genrand();
-                    uint index = floor(tmp * num_neighbor);
-                    if (index > num_neighbor)
-                    {
-                        cout << "tmp=" << tmp << " num_neighbor=" << num_neighbor << " index=" << index << endl;
-                        cout << "error" << endl;
-                        exit(-1);
-                    }
-                    auto w = GetNeighbor(v, index);
-                    if (w > num_nodes)
-                    {
-                        cout << "w=" << w << " num_nodes=" << num_nodes << endl;
-                        cout << "error" << endl;
-                        exit(-1);
-                    }
-                    // cout << "index=" << index << " w=" << w << endl;
-                    result(i, w) += prob_sum * feat(i, source) / fabs(feat(i, source)) * (weights[k] * powdeg[w]) / times;
-                    // cout << "result(" << i << "," << w << ")=" << result(i, w) << endl;
-                    v = w;
-                }
-            }
-        }
     }
 
     void Instantgnn_transpose::PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax)

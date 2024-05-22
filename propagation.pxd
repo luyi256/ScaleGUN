@@ -15,7 +15,6 @@ cdef extern from "instantAlg.h" namespace "propagation":
 		Instantgnn() except+
 		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint ) except +
 		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double ) except +
-		int RandomWalkMethod(uint, Map[MatrixXd]&)  except +
 		void PushMethod(Map[MatrixXd]&, double)  except +
 		double PowerMethod(Map[MatrixXd]&)  except +
 		double UpdateEdges(const vector[pair[uint, uint]] &, Map[MatrixXd]&, uint, double) except +
@@ -29,7 +28,6 @@ cdef extern from "instantAlg.h" namespace "propagation":
 		Instantgnn_transpose() except+
 		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint ) except +
 		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double ) except +
-		int RandomWalkMethod(uint, Map[MatrixXd]&)  except +
 		void PushMethod(Map[MatrixXd]&, double)  except +
 		double PowerMethod(Map[MatrixXd]&)  except +
 		double UpdateEdges(const vector[pair[uint, uint]] &, Map[MatrixXd]&, uint, double) except +
@@ -40,5 +38,5 @@ cdef extern from "instantAlg.h" namespace "propagation":
 		double UpdateStructNodes(const vector[uint] &) except +
 
 
-cdef extern from "sampling/sampling.cpp":
-	pass
+# cdef extern from "sampling/sampling.cpp":
+#	  pass
