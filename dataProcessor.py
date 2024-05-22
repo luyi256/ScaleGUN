@@ -175,9 +175,9 @@ def common(path, dataset, result_path, normalized_dim):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="penn94")
-    parser.add_argument("--path", type=str, default="/mnt_1/lu_yi/data/")
+    parser.add_argument("--path", type=str, default="./data/")
     parser.add_argument(
-        "--result_path", type=str, default="/mnt_1/lu_yi/data/unlearning_data/"
+        "--result_path", type=str, default="./data/unlearning_data/"
     )
     parser.add_argument("--feature_only", type=bool, default=False)
     parser.add_argument("--del_only", default=False, action="store_true")

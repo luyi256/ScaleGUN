@@ -5,7 +5,7 @@ def argparser():
     parser = argparse.ArgumentParser()
     # settings
     parser.add_argument("--dataset", default="cora", type=str)
-    parser.add_argument("--path", default="/mnt_1/lu_yi/data/")
+    parser.add_argument("--path", default="./data/")
     parser.add_argument("--del_path_suffix", default="unlearning_data/")
     parser.add_argument("--analysis_path", default="./analysis")
     parser.add_argument("--trials", type=int, default=3)
