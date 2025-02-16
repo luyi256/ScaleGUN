@@ -1,3 +1,6 @@
+###
+# Description: This script is used to evaluate the unlearning performance of node/feature removal in small graphs and norm calculation.
+###
 import numpy as np
 import propagation
 import torch
@@ -11,7 +14,7 @@ import logging
 import pytz
 import copy
 from argparser import argparser
-name = "edge"
+name = "node_feat"
 torch.set_printoptions(precision=10)
 logger = logging.getLogger(name)
 logger.setLevel(logging.DEBUG)
@@ -29,16 +32,18 @@ def main():
     dt = datetime.now(tz).strftime("%m%d_%H%M")
     set_logger(args, logger, dt, name=name)
     check_dir(f"{args.analysis_path}/{args.dataset}/{name}_result/")
+    check_dir(f"{args.analysis_path}/{args.dataset}/{name}_model/")
     logger.info(args)
-    statistics_prefix = f"{args.analysis_path}/{args.dataset}/{name}_result/Batch_{args.num_batch_removes}_Num_{args.num_removes}_lam_{args.lam}_lr_{args.lr}_mode_{args.weight_mode}_rmax_{args.rmax}_std_{args.std}_prop_{args.prop_step}"
+    statistics_prefix = f"{args.analysis_path}/{args.dataset}/{name}_result/Batch_{args.num_batch_removes}_Num_{args.num_removes}_lam_{args.lam}_lr_{args.lr}_mode_{args.weight_mode}_rmax_{args.rmax}_std_{args.std}_prop_{args.prop_step}_removal_mode_{args.removal_mode}"
     tot_cost_path = f"{statistics_prefix}_cost"
     unlearn_cost_path = f"{statistics_prefix}_unlearn_cost"
     update_cost_path = f"{statistics_prefix}_update_cost"
     acc_path = f"{statistics_prefix}_acc"
-    f_tot_cost = open(tot_cost_path+".txt", "ab")
-    f_unlearn_cost = open(unlearn_cost_path+".txt", "ab")
-    f_update_cost = open(update_cost_path+".txt", "ab")
-    f_acc = open(acc_path+".txt", "ab")
+    f_tot_cost = open(tot_cost_path+".txt", "a")
+    f_unlearn_cost = open(unlearn_cost_path+".txt", "a")
+    f_update_cost = open(update_cost_path+".txt", "a")
+    f_acc = open(acc_path+".txt", "a")
+    norm_prefix = statistics_prefix
 
     if args.dev > -1:
         device = torch.device("cuda:" + str(args.dev))
@@ -48,12 +53,6 @@ def main():
 
     start = time.perf_counter()
     data, edge_index = load_data(args.path, args.dataset)
-    num_nodes = data.x.shape[0]
-    feat_dim = data.x.shape[1]
-    num_edges = edge_index.shape[1]-num_nodes  # sub the self-loop
-    if args.delta < 0:
-        args.delta = 1/num_edges
-        logger.info(f"delta: {args.delta}")
 
     weights = get_prop_weight(args.weight_mode, args.prop_step, args.decay)
 
@@ -62,9 +61,9 @@ def main():
     logger.info(f"column_sum_avg: {column_sum_avg}")
     args.rmax = args.rmax*column_sum_avg
     feat = feat.T
+    feat_dim = data.x.shape[1]
     origin_embedding = np.copy(feat.numpy())
     if args.dataset in ["ogbn-arxiv", "ogbn-products", "pokec"]:
-        # transpose due to the discrepancy between Eigen and Python
         g = propagation.InstantGNN_transpose()
     else:
         g = propagation.InstantGNN()
@@ -74,32 +73,47 @@ def main():
     logger.info(f"initial prop time: {prop_time}")
     row = torch.from_numpy(edge_index[0]).long()
     deg = degree(row, feat.shape[1])
-    del edge_index
+    # groundtruth=np.copy(feat.numpy())
+    # g.PowerMethod(groundtruth)
+    # check_propagation(groundtruth,origin_embedding)
+    # del edge_index
+    edge_index = torch.from_numpy(edge_index).long()
     gc.collect()
     init_finish_time = time.perf_counter()
 
     X = torch.FloatTensor(origin_embedding.T)
-    # logger.debug(
-    #     f"ATTEN!!! origin_embedding.T[:10,:3]: {origin_embedding.T[:10,:3]}")
+    logger.debug(
+        f"ATTEN!!! origin_embedding.T[:10,:3]: {origin_embedding.T[:10,:3]}")
     data.y = data.y.long()
-    feat_dim = data.x.shape[1]
     num_classes = data.y.max().item() + 1
 
     X_train, X_val, X_test, y_train, y_val, y_test, train_mask, val_mask, test_mask = get_split(
         data, X, args.train_mode, args.Y_binary)
+    num_nodes = X.shape[0]
     del X
-    del data
+    # del data
     logger.info(
         "Train node:{}, Val node:{}, Test node:{}, feat dim:{}, classes:{}".format(
             X_train.shape[0], X_val.shape[0], X_test.shape[0], feat_dim, num_classes
         )
     )
-    train_size = X_train.shape[0]
+    data_prepare_time = time.perf_counter()
+
+    assert args.noise_mode == "data"
 
     if args.compare_gnorm:
+        # if we want to compare the residual gradient norm of three cases, we should not add noise
+        # and make budget very large
         b_std = 0
     else:
-        b_std = args.std
+        if args.noise_mode == "data":
+            b_std = args.std
+        elif args.noise_mode == "worst":
+            b_std = args.std  # change to worst case sigma
+        else:
+            raise ("Error: Not supported noise model.")
+
+    weight = None
     logger.info("--------------------------")
     logger.info("Training...")
     train_time = time.perf_counter()
@@ -110,7 +124,7 @@ def main():
     best_reg_lambda, best_lr, best_wd = args.lam, args.lr, args.wd
     X_train = X_train.to(device)
     y_train = y_train.to(device)
-    # logger.info(f"b:{b}")
+    logger.info(f"b:{b}")
     if args.train_mode == "ovr":
         w = ovr_lr_optimize(
             X_train,
@@ -140,18 +154,23 @@ def main():
     train_finish_time = time.perf_counter()
     accum_un_grad_norm = 0.0
     opt_grad_norm = 0.0
+    # only the error caused by unlearning
     accum_un_grad_norm_arr = torch.zeros(args.num_batch_removes).float()
     accum_un_worst_grad_norm_arr = torch.zeros(args.num_batch_removes).float()
+    accum_un_worst_grad_norm = 0.0
     if args.train_mode == "ovr":
         for k in range(y_train.size(1)):
-            opt_grad_norm += lr_grad(w[:, k], X_train,
-                                     y_train[:, k], best_reg_lambda).norm().cpu()
+            opt_grad_norm += (
+                lr_grad(w[:, k], X_train, y_train[:, k],
+                        best_reg_lambda).norm().cpu()
+            )
     else:
         grad_old = lr_grad(w, X_train, y_train, best_reg_lambda)
         opt_grad_norm = grad_old.norm().cpu()
     accum_un_worst_grad_norm = 0.0
     logger.info("init cost: %.6fs" % (init_finish_time - start))
     logger.info("opt_grad_norm: %.10f" % opt_grad_norm)
+    accum_un_grad_norm_arr[0] = accum_un_grad_norm
     accum_un_worst_grad_norm_arr[0] = accum_un_grad_norm
 
     X_val = X_val.to(device)
@@ -179,8 +198,8 @@ def main():
     ###########
     # budget for removal
     c_val = get_c(args.delta)
-    if args.compare_gnorm or args.no_retrain:
-        budget = 1e9
+    if args.compare_gnorm:
+        budget = 1e5
     else:
         if args.train_mode == "ovr":
             budget = get_budget(b_std, args.eps, c_val) * y_train.size(1)
@@ -194,44 +213,58 @@ def main():
     grad_norm_worst = torch.zeros(args.num_batch_removes).float()
     grad_norm_real = torch.zeros(args.num_batch_removes).float()
 
-    grad_norm_approx_sum = 0.0
     num_retrain = 0
 
-    # obtain delete edges
-    edge_idx_start = args.edge_idx_start
-    edge_file = del_path + "/" + args.dataset + "/" + \
-        args.dataset + f"_del_edges{args.del_postfix}.npy"
-    del_edges = np.load(edge_file)
-    logger.info(f"read del_edges from {edge_file}")
-    if del_edges.shape[1] == 2:
-        del_edges = del_edges.T
-
+    # obtain delete nodes
+    node_idx_start = args.edge_idx_start
+    node_file = (
+        del_path + "/" + args.dataset + "/" + args.dataset + "_del_nodes.npy"
+    )
+    del_nodes = np.load(node_file)
+    np.random.shuffle(del_nodes)
     w_approx = w.clone().detach().to(device)
     X_train_old = X_train.clone().detach().to(device)
+    y_train_old = y_train.clone().detach().to(device)
     del X_train
     del X_val
     del X_test
     gc.collect()
-
     for i in range(args.num_batch_removes):
-        edges = del_edges[
-            :,
-            edge_idx_start
-            + i * args.num_removes: edge_idx_start
+        nodes = del_nodes[
+            node_idx_start
+            + i * args.num_removes: node_idx_start
             + args.num_removes * (i + 1),
         ].T.tolist()
-        return_time = g.UpdateEdges(
-            edges, origin_embedding, args.num_threads, args.rmax)
+        if args.removal_mode == "node":
+            return_time = g.UpdateNodes(
+                nodes, origin_embedding, args.num_threads, args.rmax)
+        else:
+            return_time = g.UpdateFeatures(
+                nodes, origin_embedding, args.num_threads, args.rmax)
+        train_mask[nodes] = False
+
+        # groundtruth=np.copy(feat.numpy())
+        # g.PowerMethod(groundtruth)
+        # check_propagation(groundtruth,origin_embedding)
+        # test_node=edges[0][0]
+        # logger.debug(f"test node: {test_node}, check propagation: {origin_embedding[:10,test_node]}")
         update_cost.append(return_time)
         residue = np.zeros(feat_dim)
         g.GetResidueSum(residue)
         column_sum_norm = LA.norm(residue, 2)
         X_new = torch.FloatTensor(origin_embedding.T)
         X_train_new = X_new[train_mask].to(device)
+        train_size = train_mask.sum().item()
+        y_train = F.one_hot(data.y[train_mask],
+                            num_classes=data.y.max().item()+1) * 2 - 1
+        y_train = y_train.float().to(device)
+
         update_finish_time = time.perf_counter()
         K = get_K_matrix(X_train_new)
         spec_norm = sqrt_spectral_norm(K)
         if args.compare_gnorm:
+            if args.removal_mode == "feature":
+                feat[:, nodes] = 0
             groundtruth = np.copy(feat.numpy())
             g.PowerMethod(groundtruth)
             X_groundtruth = torch.FloatTensor(groundtruth.T)
@@ -243,14 +276,13 @@ def main():
                     w_approx[:, k], X_train_new, y_rem, best_reg_lambda
                 )
                 grad_old = lr_grad(
-                    w_approx[:, k], X_train_old, y_rem, best_reg_lambda)
+                    w_approx[:, k], X_train_old, y_train_old[:, k], best_reg_lambda)
                 grad_new = lr_grad(
                     w_approx[:, k], X_train_new, y_rem, best_reg_lambda)
                 grad_i = grad_old - grad_new
                 Delta = H_inv.mv(grad_i)
                 w_approx[:, k] += Delta
                 Delta_p = X_train_new.mv(Delta)
-                # here, grad_norm_approx store the norm induced by unlearning, that is, the second term of data-dependent bound
                 grad_norm_approx[i] += (Delta.norm() *
                                         Delta_p.norm() * spec_norm * gamma).cpu()
                 if args.compare_gnorm:
@@ -258,20 +290,26 @@ def main():
                         w_approx[:, k], X_groundtruth_train, y_rem, best_reg_lambda)
                     grad_norm_real[i] += grad_gt_k.norm().cpu()
             if args.compare_gnorm:
-                approximation_worst_norm, unlearning_worst_norm = get_worst_Gbound_edge(
-                    deg[edges[0][0]], deg[edges[0][1]], train_size, feat_dim, args.lam, args.rmax, num_nodes, args.prop_step)
+                if args.removal_mode == "node":
+                    degs = deg[torch.masked_select(
+                        edge_index[1], edge_index[0] == nodes[0])]
+                    approximation_worst_norm, unlearning_worst_norm = get_worst_Gbound_node(
+                        degs, train_size, feat_dim, args.lam, args.rmax, num_nodes, args.prop_step)
+                else:
+                    approximation_worst_norm, unlearning_worst_norm = get_worst_Gbound_feat(
+                        deg[nodes[0]], train_size, feat_dim, args.lam, args.rmax, num_nodes, args.prop_step)
                 accum_un_worst_grad_norm += unlearning_worst_norm * \
                     y_train.size(1)
                 grad_norm_worst[i] = y_train.size(
                     1)*approximation_worst_norm+accum_un_worst_grad_norm
-                accum_un_worst_grad_norm_arr[i] = accum_un_worst_grad_norm
             approximation_norm = column_sum_norm*2*y_train.shape[1]
+            logger.debug(f"approximation_norm: {approximation_norm}")
             accum_un_grad_norm += grad_norm_approx[i]
             accum_un_grad_norm_arr[i] = accum_un_grad_norm
             grad_norm_approx[i] = approximation_norm + accum_un_grad_norm
             if grad_norm_approx[i] > budget:
                 logger.info(
-                    f"The {i}-th removal, grad_norm_approx: {grad_norm_approx[i]}, approximation_norm: {approximation_norm}, retraining..."
+                    f"grad_norm_approx: {grad_norm_approx[i]}, retraining..."
                 )
                 accum_un_grad_norm = 0.0
                 b = b_std * torch.randn(feat_dim,
@@ -290,6 +328,11 @@ def main():
                     # y_val=y_val,
                 )
                 num_retrain += 1
+                for k in range(y_train.size(1)):
+                    accum_un_grad_norm += (
+                        lr_grad(w_approx[:, k], X_train_new,
+                                y_train[:, k], best_reg_lambda).norm().cpu()
+                    )
             remove_finish_time = time.perf_counter()
             X_val_new = X_new[val_mask].to(device)
             acc_removal[0].append(ovr_lr_eval(
@@ -298,59 +341,14 @@ def main():
             acc_removal[1].append(ovr_lr_eval(
                 w_approx, X_test_new, y_test).item())
         else:
-            X_train_new = X_new[train_mask].to(device)
-            y_train = y_train.to(device)
-            H_inv = lr_hessian_inv(w_approx, X_train_new, y_train, args.lam)
-            # grad_i should be the difference
-            grad_old = lr_grad(w_approx, X_train_old, y_train, args.lam)
-            grad_new = lr_grad(w_approx, X_train_new, y_train, args.lam)
-            grad_i = grad_old - grad_new
-            Delta = H_inv.mv(grad_i)
-            Delta_p = X_train_new.mv(Delta)
-            w_approx += Delta
-            grad_norm_approx[i] += (
-                Delta.norm() * Delta_p.norm() * spec_norm * gamma
-            ).cpu()
-            grad_old = lr_grad(w_approx, X_train_new, y_train, args.lam)
-            if args.compare_gnorm:
-                grad_norm_real[i] = (
-                    lr_grad(w_approx, X_groundtruth_train,
-                            y_train, args.lam).norm().cpu()
-                )
-                approximation_worst_norm, unlearning_worst_norm = get_worst_Gbound_edge(
-                    deg[edges[0][0]], deg[edges[0][1]], train_size, feat_dim, args.lam, args.rmax, num_nodes, args.prop_step)
-                accum_un_worst_grad_norm += unlearning_worst_norm
-                grad_norm_worst[i] = accum_un_worst_grad_norm + \
-                    approximation_worst_norm
-                approximation_norm = column_sum_norm*2
-                accum_un_grad_norm += grad_norm_approx[i]
-                grad_norm_approx[i] = approximation_norm + accum_un_grad_norm
-            if grad_norm_approx[i] > budget:
-                # retrain the model
-                accum_un_grad_norm = 0
-                b = b_std * torch.randn(X_new.size(1)).float().to(device)
-                w_approx = lr_optimize(
-                    X_train_new,
-                    y_train,
-                    args.lam,
-                    b=b,
-                    num_steps=args.epochs,
-                    verbose=False,
-                    opt_choice=args.optimizer,
-                    lr=args.lr,
-                    wd=args.wd,
-                )
-                num_retrain += 1
-
-            remove_finish_time = time.perf_counter()
-            acc_removal[0].append(lr_eval(w_approx, X_val_new, y_val).item())
-            acc_removal[1].append(lr_eval(w_approx, X_test_new, y_test).item())
+            raise NotImplementedError("Not implemented for binary classification")
         unlearn_cost.append(remove_finish_time - update_finish_time)
         tot_cost.append(remove_finish_time - update_finish_time+return_time)
         X_train_old = X_train_new.clone().detach()
+        y_train_old = y_train.clone().detach()
         if i % args.disp == 0:
             logger.info(
-                f"Iteration {i}: Edge del = {edges[0]}, grad_norm_approx = {grad_norm_approx[i]}, Val acc = {acc_removal[0][i+1]} Test acc = {acc_removal[1][i+1]}, avg update cost: {update_cost[i+1]}, avg unlearn cost:{unlearn_cost[i+1]}, avg tot cost:{tot_cost[i+1]}, num_retrain: {num_retrain}"
+                f"Iteration {i+1}: Node del = {nodes[0]}, grad_norm_approx = {grad_norm_approx[i]}, Val acc = {acc_removal[0][i+1]} Test acc = {acc_removal[1][i+1]}, avg update cost: {update_cost[i+1]}, avg unlearn cost:{unlearn_cost[i+1]}, avg tot cost:{tot_cost[i+1]}, num_retrain: {num_retrain}"
             )
     end_time = time.perf_counter()
 
@@ -360,6 +358,10 @@ def main():
                 (sum(unlearn_cost[1:]) / (len(unlearn_cost)-1)))
     logger.info("tot cost: %.6fs" % (sum(tot_cost[1:]) / (len(tot_cost)-1)))
     logger.info("tot cost: %.6fs" % (end_time - start_time))
+    np.save(tot_cost_path+f"_{args.edge_idx_start}", tot_cost)
+    np.save(unlearn_cost_path+f"_{args.edge_idx_start}", unlearn_cost)
+    np.save(update_cost_path+f"_{args.edge_idx_start}", update_cost)
+    np.save(acc_path+f"_{args.edge_idx_start}", acc_removal[1])
     np.savetxt(f_tot_cost, tot_cost, delimiter=",")
     np.savetxt(f_unlearn_cost, unlearn_cost, delimiter=",")
     np.savetxt(f_update_cost, update_cost, delimiter=",")
@@ -368,18 +370,12 @@ def main():
         grad_norm_approx = grad_norm_approx.cpu().numpy()
         grad_norm_real = grad_norm_real.cpu().numpy()
         grad_norm_worst = grad_norm_worst.cpu().numpy()
-        accum_un_grad_norm_arr = accum_un_grad_norm_arr.cpu().numpy()
-        accum_un_worst_grad_norm_arr = accum_un_worst_grad_norm_arr.cpu().numpy()
-        np.savetxt(statistics_prefix+"_approx.txt",
-                   grad_norm_approx, delimiter=",")
-        np.savetxt(statistics_prefix+"_real.txt",
-                   grad_norm_real, delimiter=",")
-        np.savetxt(statistics_prefix+"_worst.txt",
-                   grad_norm_worst, delimiter=",")
-        np.savetxt(statistics_prefix+"_app_real.txt",
-                   accum_un_grad_norm_arr, delimiter=",")
-        np.savetxt(statistics_prefix+"_app_worst.txt",
-                   accum_un_worst_grad_norm_arr, delimiter=",")
+        np.savetxt(
+            norm_prefix+f"_approx_{args.removal_mode}.txt", grad_norm_approx, delimiter=",")
+        np.savetxt(
+            norm_prefix+f"_real_{args.removal_mode}.txt", grad_norm_real, delimiter=",")
+        np.savetxt(
+            norm_prefix+f"_worst_{args.removal_mode}.txt", grad_norm_worst, delimiter=",")
 
 
 if __name__ == "__main__":

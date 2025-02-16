@@ -50,30 +50,27 @@ namespace propagation
         //     res = tmp_result.transpose();
         // else
         //     res = tmp_result;
-        res=Eigen::Map<Eigen::VectorXd,Eigen::Unaligned> (residue_sum.data(),residue_sum.size());
+        res = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(residue_sum.data(), residue_sum.size());
         return 0;
     }
 
-    double Instantgnn::init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax)
+    double Instantgnn::init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax, uint _dimension)
     {
         layer = _layer; // from 0 to _layer
         r = _r;
         num_threads = _num_threads;
         weights = _weights;
-        string data_attr = path + dataset + "/" + dataset + ".attr";
-        ifstream fin(data_attr.c_str(), ios::in);
-        if (!fin)
-        {
-            cout << "Error opening file:" << data_attr << endl;
-            exit(1);
-        }
-        fin >> num_nodes >> num_edges >> dimension;
-        fin.close();
-        cout << "---graph info---" << endl;
-        cout << "num_nodes=" << num_nodes << endl;
-        cout << "num_edges=" << num_edges << endl;
-        cout << "dimension=" << dimension << endl;
-        cout << "X:" << X.rows() << " " << X.cols() << endl;
+        dimension = _dimension;
+        // string data_attr = path + dataset + "/" + dataset + ".attr";
+        // ifstream fin(data_attr.c_str(), ios::in);
+        // if (!fin)
+        // {
+        //     cout << "Error opening file:" << data_attr << endl;
+        //     exit(1);
+        // }
+        // fin >> num_nodes >> num_edges >> dimension;
+        // fin.close();
+        num_nodes = X.cols();
         if (X.rows() != dimension || X.cols() != num_nodes)
         {
             cout << "X.rows()!=dimension || X.cols()!=num_nodes" << endl;
@@ -81,12 +78,13 @@ namespace propagation
         }
         adj.resize(num_nodes);
         deg = new uint[num_nodes];
-        residue_sum.resize(dimension,0.0);
+        residue_sum.resize(dimension, 0.0);
         memset(deg, 0, sizeof(uint) * num_nodes);
         // undirected already
         cout << "edge_index:" << edge_index.rows() << " " << edge_index.cols() << endl;
         if (edge_index.cols() != 2)
         {
+            num_edges = edge_index.cols();
             for (uint i = 0; i < edge_index.cols(); i++)
             {
                 uint u = edge_index(0, i);
@@ -97,6 +95,7 @@ namespace propagation
         }
         else
         {
+            num_edges = edge_index.rows();
             for (uint i = 0; i < edge_index.rows(); i++)
             {
                 uint u = edge_index(i, 0);
@@ -105,6 +104,11 @@ namespace propagation
                 deg[u]++;
             }
         }
+        cout << "---graph info---" << endl;
+        cout << "num_nodes=" << num_nodes << endl;
+        cout << "num_edges=" << num_edges << endl;
+        cout << "dimension=" << dimension << endl;
+        cout << "X:" << X.rows() << " " << X.cols() << endl;
         cout << "load adj matrix done!" << endl;
         vector<thread> threads;
         powdeg = new double[num_nodes];
@@ -154,12 +158,13 @@ namespace propagation
         return time;
     }
 
-    double Instantgnn::init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads)
+    double Instantgnn::init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, uint _dimension)
     {
         layer = _layer; // from 0 to _layer
         r = _r;
         num_threads = _num_threads;
         weights = _weights;
+        dimension = _dimension;
         string data_attr = path + dataset + "/" + dataset + ".attr";
         ifstream fin(data_attr.c_str(), ios::in);
         if (!fin)
@@ -167,7 +172,7 @@ namespace propagation
             cout << "Error opening file:" << data_attr << endl;
             exit(1);
         }
-        fin >> num_nodes >> num_edges >> dimension;
+        fin >> num_nodes >> num_edges;
         fin.close();
         cout << "---graph info---" << endl;
         cout << "num_nodes=" << num_nodes << endl;
@@ -580,9 +585,9 @@ namespace propagation
                     //     cout << "error" << endl;
                     //     exit(-1);
                     // }
-                    double tmp=q[i][k][node] / GetDegree(node) * affectNeighbors[node].size();
+                    double tmp = q[i][k][node] / GetDegree(node) * affectNeighbors[node].size();
                     residue[i][k][node] += tmp;
-                    residue_sum[i] +=tmp; 
+                    residue_sum[i] += tmp;
                     for (auto nei : affectNeighbors[node])
                     {
                         residue[i][k][node] -= q[i][k - 1][nei] / GetDegree(nei);
@@ -607,7 +612,7 @@ namespace propagation
                         //     cout << "error" << endl;
                         //     exit(-1);
                         // }
-                        residue_sum[i] -= residue[i][k][node];                        
+                        residue_sum[i] -= residue[i][k][node];
                         residue[i][k][node] = 0.0;
                     }
                 }
@@ -657,7 +662,7 @@ namespace propagation
                 }
                 else
                 {
-                    residue_sum[dim]+=residue[dim][k][source] / num_neighbor;
+                    residue_sum[dim] += residue[dim][k][source] / num_neighbor;
                     residue[dim][k + 1][w] += residue[dim][k][source] / num_neighbor;
                     if (!next_indicator_candidates[w] && fabs(residue[dim][k + 1][w]) > rmax)
                     {
@@ -681,7 +686,7 @@ namespace propagation
             // cout << "***result(" << dim << "," << source << ")=" << result(dim, source) << endl;
             // cout << (q[dim][0][source] * 0.1 + q[dim][1][source] * 0.09) * pow(deg[source], -r) << endl;
             // cout << "***" << endl;
-            residue_sum[dim]-=residue[dim][k][source];
+            residue_sum[dim] -= residue[dim][k][source];
             residue[dim][k][source] = 0.0;
         }
         candidates = next_candidates;
@@ -704,7 +709,7 @@ namespace propagation
                 {
                     // no candidate has 0 degree
                     residue[i][0][j] = result(i, j) * pow(GetDegree(j), r);
-                    residue_sum[i]+=residue[i][0][j];
+                    residue_sum[i] += residue[i][0][j];
                     result(i, j) = 0.0;
                     if (fabs(residue[i][0][j]) > rmax)
                     {

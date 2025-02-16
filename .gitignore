@@ -16,3 +16,5 @@ plot*
 result/
 analysis_old/
 build/
+analysis*/
+models/
