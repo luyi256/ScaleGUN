@@ -7,11 +7,11 @@ cdef class InstantGNN:
 	def __cinit__(self):
 		self.c_instantgnn=Instantgnn()
 
-	def init_graph(self,path,dataset,np.ndarray array1,layer,r,weights,num_thread):
-		return self.c_instantgnn.init_graph(path.encode(),dataset.encode(),Map[MatrixXi](array1),layer,r,weights,num_thread)
+	def init_graph(self,path,dataset,np.ndarray array1,layer,r,weights,num_thread,dimension):
+		return self.c_instantgnn.init_graph(path.encode(),dataset.encode(),Map[MatrixXi](array1),layer,r,weights,num_thread,dimension)
 
-	def init_push_graph(self,path,dataset,np.ndarray array0,np.ndarray array1,layer,r,weights,num_thread,rmax):
-		return self.c_instantgnn.init_push_graph(path.encode(),dataset.encode(),Map[MatrixXd](array0),Map[MatrixXi](array1),layer,r,weights,num_thread,rmax)
+	def init_push_graph(self,path,dataset,np.ndarray array0,np.ndarray array1,layer,r,weights,num_thread,rmax,dimension):
+		return self.c_instantgnn.init_push_graph(path.encode(),dataset.encode(),Map[MatrixXd](array0),Map[MatrixXi](array1),layer,r,weights,num_thread,rmax,dimension)
 
 	def PushMethod(self, np.ndarray result,rmax):
 		self.c_instantgnn.PushMethod(Map[MatrixXd](result),rmax)
@@ -45,11 +45,11 @@ cdef class InstantGNN_transpose:
 	def __cinit__(self):
 		self.c_instantgnn_transpose=Instantgnn_transpose()
 
-	def init_graph(self,path,dataset,np.ndarray array1,layer,r,weights,num_thread):
-		return self.c_instantgnn_transpose.init_graph(path.encode(),dataset.encode(),Map[MatrixXi](array1),layer,r,weights,num_thread)
+	def init_graph(self,path,dataset,np.ndarray array1,layer,r,weights,num_thread,dimension):
+		return self.c_instantgnn_transpose.init_graph(path.encode(),dataset.encode(),Map[MatrixXi](array1),layer,r,weights,num_thread,dimension)
 	
-	def init_push_graph(self,path,dataset,np.ndarray array0,np.ndarray array1,layer,r,weights,num_thread,rmax):
-		return self.c_instantgnn_transpose.init_push_graph(path.encode(),dataset.encode(),Map[MatrixXd](array0),Map[MatrixXi](array1),layer,r,weights,num_thread,rmax)
+	def init_push_graph(self,path,dataset,np.ndarray array0,np.ndarray array1,layer,r,weights,num_thread,rmax,dimension):
+		return self.c_instantgnn_transpose.init_push_graph(path.encode(),dataset.encode(),Map[MatrixXd](array0),Map[MatrixXi](array1),layer,r,weights,num_thread,rmax,dimension)
 	
 	def PushMethod(self, np.ndarray result,rmax):
 		self.c_instantgnn_transpose.PushMethod(Map[MatrixXd](result),rmax)

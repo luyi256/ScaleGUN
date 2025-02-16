@@ -112,66 +112,6 @@ def common(path, dataset, result_path, normalized_dim):
     print("finish saving data")
 
 
-# def common_random(path, dataset, result_path):
-#     if dataset in ["cora"]:
-#         data = Planetoid(root="./data/", name=dataset, split="full")
-#         data = data[0]
-
-#         print("save features.....")
-#         feat = data.x.numpy()
-#         feat = np.array(feat, dtype=np.float64)
-#         scaler = sklearn.preprocessing.StandardScaler()
-#         scaler.fit(feat)
-#         feat = scaler.transform(feat)
-#         for i in range(feat.shape[1]):
-#             # print sum
-#             print(f"dimension: {i}, sum:{np.sum(feat[:, i])}")
-#         print(feat[:, 0])
-#         check_dir(f"{result_path}/{dataset}")
-#         np.save(f"{result_path}/{dataset}/{dataset}_feat.npy", feat)
-
-#         print("save labels.....")
-#         train_idx = [index for index, value in enumerate(data.train_mask) if value]
-#         val_idx = [index for index, value in enumerate(data.val_mask) if value]
-#         test_idx = [index for index, value in enumerate(data.test_mask) if value]
-#         all_idx = train_idx + val_idx + test_idx
-#         total_num = len(all_idx)
-#         np.random.shuffle(all_idx)
-#         train_idx = np.array(all_idx[: math.floor(total_num * 0.7)], dtype=np.int32)
-#         val_idx = np.array(
-#             all_idx[math.floor(total_num * 0.7) : math.floor(total_num * 0.8)],
-#             dtype=np.int32,
-#         )
-#         test_idx = np.array(all_idx[math.floor(total_num * 0.8) :], dtype=np.int32)
-
-#         labels = data.y
-#         train_labels = labels[train_idx].numpy().astype(np.int32)
-#         val_labels = labels[val_idx].numpy().astype(np.int32)
-#         test_labels = labels[test_idx].numpy().astype(np.int32)
-
-#         np.savez(
-#             f"{result_path}{dataset}/{dataset}_labels_random.npz",
-#             train_idx=train_idx,
-#             val_idx=val_idx,
-#             test_idx=test_idx,
-#             train_labels=train_labels,
-#             val_labels=val_labels,
-#             test_labels=test_labels,
-#         )
-#         data.edge_index = to_undirected(data.edge_index, data.num_nodes)
-#         f = open(f"{result_path}/{dataset}/{dataset}.edges", "wb")
-#         for i in range(data.edge_index.shape[1]):
-#             m = struct.pack("II", data.edge_index[0][i], data.edge_index[1][i])
-#             f.write(m)
-#         f.close()
-
-#         f = open(f"{result_path}/{dataset}/{dataset}.attr", "w")
-#         f.write("%d %d %d" % (data.num_nodes, data.num_edges, data.num_features))
-#         f.close()
-
-#         print("finish saving data")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="penn94")

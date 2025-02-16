@@ -22,8 +22,8 @@ namespace propagation
         vector<double> residue_sum;
         uint layer;
         double r;
-        double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index,  uint _layer, double _r, const vector<double> &_weights, uint _num_threads);
-        double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax);
+        double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, uint dimension);
+        double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax, uint dimension);
         void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         double PowerMethod(Eigen::Ref<Eigen::MatrixXd> result);
         double UpdateEdges(const vector<pair<uint, uint>> &edgepairs, Eigen::Ref<Eigen::MatrixXd> result, uint update_num_threads, double rmax);
@@ -64,8 +64,8 @@ namespace propagation
         uint layer;
         vector<double> residue_sum;
         double r;
-        double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads);
-        double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax);
+        double init_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, uint dimension);
+        double init_push_graph(string path, string dataset, Eigen::Map<Eigen::MatrixXd> &X, Eigen::Map<Eigen::MatrixXi> &edge_index, uint _layer, double _r, const vector<double> &_weights, uint _num_threads, double rmax, uint dimension);
         void PushMethod(Eigen::Ref<Eigen::MatrixXd> result, double rmax);
         double PowerMethod(Eigen::Ref<Eigen::MatrixXd> result);
         double UpdateEdges(const vector<pair<uint, uint>> &edgepairs, Eigen::Ref<Eigen::MatrixXd> result, uint update_num_threads, double rmax);

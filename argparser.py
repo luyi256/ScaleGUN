@@ -89,6 +89,11 @@ def argparser():
     parser.add_argument("--num_add", type=int, default=10000)
     parser.add_argument("--max_deg", type=int, default=5)
     parser.add_argument("--del_postfix", type=str, default="")
+
+    parser.add_argument("--test_MI", action="store_true", default=False)
+    parser.add_argument("--replay", action="store_true", default=False)
+    parser.add_argument("--attack_dim", type=int, default=100)
+    parser.add_argument("--rand", action="store_true")
     args = parser.parse_args()
 
     if args.eps < 0:

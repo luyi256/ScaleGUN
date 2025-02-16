@@ -13,8 +13,8 @@ cdef extern from "instantAlg_transpose.cpp":
 cdef extern from "instantAlg.h" namespace "propagation":
 	cdef cppclass Instantgnn:
 		Instantgnn() except+
-		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint ) except +
-		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double ) except +
+		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,uint ) except +
+		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double,uint ) except +
 		void PushMethod(Map[MatrixXd]&, double)  except +
 		double PowerMethod(Map[MatrixXd]&)  except +
 		double UpdateEdges(const vector[pair[uint, uint]] &, Map[MatrixXd]&, uint, double) except +
@@ -26,8 +26,8 @@ cdef extern from "instantAlg.h" namespace "propagation":
 
 	cdef cppclass Instantgnn_transpose:
 		Instantgnn_transpose() except+
-		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint ) except +
-		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double ) except +
+		double init_graph(string,string,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,uint ) except +
+		double init_push_graph(string,string,const Map[MatrixXd] &,const Map[MatrixXi] &,uint,double,const vector[double]&,uint,double,uint ) except +
 		void PushMethod(Map[MatrixXd]&, double)  except +
 		double PowerMethod(Map[MatrixXd]&)  except +
 		double UpdateEdges(const vector[pair[uint, uint]] &, Map[MatrixXd]&, uint, double) except +
