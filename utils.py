@@ -43,12 +43,14 @@ def setup_logger(name):
 
 def set_logger(args, logger, dt, name="edge"):
     check_dir(f"{args.analysis_path}/{args.dataset}/{name}/")
-    print(
-        f"****** log in: {args.analysis_path}/{args.dataset}/{name}/{dt}_Batch_{args.num_batch_removes}_Num_{args.num_removes}_lam_{args.lam}_lr_{args.lr}_mode_{args.weight_mode}_rmax_{args.rmax}_std_{args.std}_axis_{args.axis_num}_r_{args.r}_edge_idx_{args.edge_idx_start}_seed_{args.seed}_removal_mode_{args.removal_mode}.log ******"
-    )
-    file_handler = logging.FileHandler(
-        f"{args.analysis_path}/{args.dataset}/{name}/{dt}_Batch_{args.num_batch_removes}_Num_{args.num_removes}_lam_{args.lam}_lr_{args.lr}_mode_{args.weight_mode}_rmax_{args.rmax}_std_{args.std}_axis_{args.axis_num}_r_{args.r}_edge_idx_{args.edge_idx_start}_seed_{args.seed}_removal_mode_{args.removal_mode}.log"
-    )
+    handler_name = f"{args.analysis_path}/{args.dataset}/{name}/{dt}_Batch_{args.num_batch_removes}_Num_{args.num_removes}_lam_{args.lam}_lr_{args.lr}_mode_{args.weight_mode}_rmax_{args.rmax}_std_{args.std}_axis_{args.axis_num}_r_{args.r}_edge_idx_{args.edge_idx_start}_seed_{args.seed}"
+    if "node" in name or "feature" in name:
+        handler_name = handler_name+f"_removal_mode_{args.removal_mode}"
+    if "deep" in name:
+        handler_name = handler_name+f"layer_{args.layer}"
+    handler_name = handler_name+".log"
+    print(f"****** log in: {handler_name} ******")
+    file_handler = logging.FileHandler(handler_name)
     file_handler.setLevel(logging.DEBUG)
     # console_handler = logging.StreamHandler()
     # console_handler.setLevel(logging.DEBUG)
@@ -413,6 +415,11 @@ def check_propagation(groundtruth, result):
             for i in range(groundtruth.shape[0])
         ]
     )
+    maxl2error = max(
+        [np.sum(np.square(groundtruth[i] - result[i]))
+         for i in range(groundtruth.shape[0])]
+    )
+    maxl2error = np.sqrt(maxl2error)
     maxerror = max(
         [
             np.max(np.abs(groundtruth[i] - result[i]))
@@ -423,11 +430,12 @@ def check_propagation(groundtruth, result):
         np.argmax(np.abs(groundtruth - result)),
         (groundtruth.shape[0], groundtruth.shape[1]),
     )
-    print("max error at: ", index)
-    print("max error: ", groundtruth[index], result[index])
-    print("max l1-error: ", maxl1error)
-    print("max error: ", maxerror)
-    return maxl1error, maxerror
+    logger.info(f"max error at: {index}")
+    logger.info(f"max error: {groundtruth[index]}, {result[index]}")
+    logger.info(f"max l1-error: {maxl1error}")
+    logger.info(f"max l2-error: {maxl2error}")
+    logger.info(f"max error: {maxerror}")
+    return maxl2error
 
 
 def check_dir(path):

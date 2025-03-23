@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import time
 import gc
 from datetime import datetime
-import optuna
 import logging
 import pytz
 import psutil

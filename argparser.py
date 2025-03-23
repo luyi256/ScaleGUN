@@ -69,8 +69,6 @@ def argparser():
     parser.add_argument("--verbose", action="store_true",
                         default=False, help="verbosity in optimizer")
     parser.add_argument("--disp", type=int, default=10)
-    parser.add_argument("--optuna", action="store_true", default=False,
-                        help="Use optuna to optimize hyperparameters.",)
 
     # args for unlearing
     parser.add_argument("--compare_gnorm", action="store_true", default=False,

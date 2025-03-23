@@ -9,10 +9,8 @@ from utils import *
 import time
 import gc
 from datetime import datetime
-import optuna
 import logging
 import pytz
-import copy
 from argparser import argparser
 name = "node_feat"
 torch.set_printoptions(precision=10)

@@ -6,7 +6,6 @@ from utils import *
 import time
 import gc
 from datetime import datetime
-import optuna
 import logging
 import pytz
 import copy
